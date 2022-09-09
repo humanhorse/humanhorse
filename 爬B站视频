@@ -1,0 +1,47 @@
+import requests
+import re  # 导入正则
+import json  # 导入json
+from pprint import pprint  # 导入格式化输出模块
+
+url = "https://www.bilibili.com/video/BV12T4y1Q79d?spm_id_from=333.788.top_right_bar_window_history.content.click&vd_source=8dd8a03807601a36dc5cda5f5c71e828"  # 确认url地址
+# F12-网络里找到浏览器headers，伪装成浏览器
+headers = {
+    # 防盗链 告诉服务器我们请求的地址是从哪里跳转过来的
+    "Referer": "https://www.bilibili.com/",
+    # 用户代理，表示浏览器身份标识
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.5112.102 Safari/537.36 Edg/104.0.1293.70"
+}
+# 调用request模块get请求方法对于url地址发送请求，并携带上headers伪装，最后用自定义变量response接受数据
+response = requests.get(url=url, headers=headers)
+# print(response.text)
+'''
+正则表达式
+提取标题，findall(什么数据，什么地方) 找到所有的方法
+response中找到标题所在位置的代码，把标题替换为.*?即可
+（）:表示精确匹配我们要的东西
+.:可以匹配任意字符（除了\n）
+*:可以匹配前一个字符0个或无限个
+？：非贪婪匹配模式
+。*？：通配符
+'''
+title = re.findall('"title":"(.*?)","pubdate"', response.text)[0]  # 返回的是列表，[0]的作用是把标题从列表中取出
+print(title)
+html_data = re.findall('window.__playinfo__=(.*?)</script>', response.text)[0]  # 提取视频信息
+json_data = json.loads(html_data)  # 将视频信息转换数据类型,转换为json字典数据
+# print(json_data)
+# pprint(json_data)  # json字典数据，可以使用pprint模块格式化输出
+# 根据上方格式化输出的数据，进行字典取值（键值对取值），根据冒号左边内容，提取冒号右边的内容，找到baseUrl的内容
+audio_url = json_data['data']['dash']['audio'][0]['baseUrl']
+video_url = json_data['data']['dash']['video'][0]['baseUrl']
+#print(audio_url)
+#print(video_url)
+#获取音视频
+audio_content = requests.get(url=audio_url, headers=headers).content
+video_content = requests.get(url=video_url, headers=headers).content
+#保存数据
+with open('video\\'+title+'.mp3',mode = 'wb') as audio:
+    audio.write(audio_content)
+with open('video\\'+title+'.mp4',mode = 'wb') as video:
+    video.write(video_content)
+print('保存完毕')
+#用ffmpg合并音视频
